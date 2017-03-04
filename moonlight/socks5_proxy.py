@@ -2,6 +2,8 @@ import socket
 import selectors
 from logger import logger
 
+__all__ = ['Socks5Proxy']
+
 SOCK_V5 = chr(0x05)
 BUFFER_SIZE = 1024
 
@@ -36,7 +38,7 @@ class _ProxyRequestHandler(object):
         elif self._status == P_S_AUTHED:
             self._connect()
         else:
-            self._transmit()
+            self._relay()
 
     def __set_status(self, status):
         self._status = status
@@ -99,14 +101,13 @@ class _ProxyRequestHandler(object):
             server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._s_socket = server_sock
             try:
-                print(server_address, server_port)
                 server_sock.connect((server_address, server_port))
                 send_msg = '%s\x00\x00\x01%s%s'%(SOCK_V5, local_address,
                                                  local_port)
                 self._l_socket.send(send_msg)
                 self.__set_status(P_S_CONNECTED)
 
-                def handle_transmit(sock, mask):
+                def handle_relay(sock, mask):
                     up_stream = None
                     if sock == self._l_socket:
                         up_stream = True
@@ -115,13 +116,13 @@ class _ProxyRequestHandler(object):
                     else:
                         logger.error('Error socket')
                         self._close_connect()
-                    self._transmit(up_stream)
+                    self._relay(up_stream)
 
                 self._selector.unregister(self._l_socket)
                 self._selector.register(self._l_socket, selectors.EVENT_READ,
-                                        handle_transmit)
+                                        handle_relay)
                 self._selector.register(self._s_socket, selectors.EVENT_READ,
-                                        handle_transmit)
+                                        handle_relay)
                 logger.info('connected to (%s:%s) with command %s. [%s]'%\
                             (server_address, server_port, cmd, self._fd))
             except Exception as e:
@@ -131,12 +132,11 @@ class _ProxyRequestHandler(object):
                 send_msg = '%s\x01\x00\x01%s%s'%(SOCK_V5, local_address, local_port)
                 self._l_socket.send(send_msg)
                 self._close_connect()
-
         else:
             logger.error('Error connection type')
             self._close_connect()
 
-    def _transmit(self, is_up_stream):
+    def _relay(self, is_up_stream):
         if is_up_stream:
             data = self._l_socket.recv(BUFFER_SIZE)
             self._s_socket.send(data)
@@ -152,7 +152,7 @@ class _ProxyRequestHandler(object):
             self._s_socket.close()
 
 
-class Socket5Proxy(object):
+class Socks5Proxy(object):
     def __init__(self, config):
         self._config = config
         self._load_config()
@@ -196,6 +196,6 @@ class Socket5Proxy(object):
 if __name__ == '__main__':
     conf = {
         'local_address': '127.0.0.1',
-        'local_port': 1235,
+        'local_port': 8888,
     }
-    Socket5Proxy(config=conf).run()
+    Socks5Proxy(config=conf).run()
