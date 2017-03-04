@@ -97,7 +97,9 @@ class _ProxyRequestHandler(object):
 
         if cmd == CMD_CONNECT:
             server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._s_socket = server_sock
             try:
+                print(server_address, server_port)
                 server_sock.connect((server_address, server_port))
                 send_msg = '%s\x00\x00\x01%s%s'%(SOCK_V5, local_address,
                                                  local_port)
@@ -124,12 +126,11 @@ class _ProxyRequestHandler(object):
                             (server_address, server_port, cmd, self._fd))
             except Exception as e:
                 logger.error(e)
-#                import traceback, sys
-#                traceback.print_exc(file=sys.stdout)
+                import traceback, sys
+                traceback.print_exc(file=sys.stdout)
                 send_msg = '%s\x01\x00\x01%s%s'%(SOCK_V5, local_address, local_port)
                 self._l_socket.send(send_msg)
                 self._close_connect()
-            self._s_socket = server_sock
 
         else:
             logger.error('Error connection type')
@@ -194,7 +195,7 @@ class Socket5Proxy(object):
 
 if __name__ == '__main__':
     conf = {
-        'local_address': 'localhost',
+        'local_address': '127.0.0.1',
         'local_port': 1235,
     }
     Socket5Proxy(config=conf).run()
